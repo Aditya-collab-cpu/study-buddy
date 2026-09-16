@@ -20,16 +20,52 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 class GraphState(TypedDict):
     query: str
     topic: str
-    stage: str          # "start" | "awaiting_answer" | "done"
+    stage: str          # "start" | "awaiting_answer" | "ready_for_next" | "chapter_done"
     response: str
     check_question: str
     understanding: str  # "correct" | "partial" | "wrong"
     attempts: int
     explanation: str
+    mode: str            # "learning" | "exam" (exam not built yet)
+    subtopic: list
+    subtopic_index: int
 
 
 def entry_decision(state: GraphState) -> str:
-    return "evaluate" if state.get("stage") == "awaiting_answer" else "explain"
+    stage = state.get("stage")
+    if stage == "awaiting_answer":
+        return "evaluate"
+    if stage == "ready_for_next":
+        return "advance"
+    return "explain"
+
+def advance_node(state:GraphState)->dict:
+    next_index = state["subtopic_index"] + 1
+    if next_index < len(state["subtopic"]):
+        return{
+            "subtopic_index":next_index,
+            "topic":state["subtopic"][next_index],
+            "attempts":0,
+            "stage":"start"
+            
+        }
+    else:
+        return{
+            "stage":"chapter_done",
+            "response":"You've completed all subtopics in this chapter. Great job!"
+        }
+        
+def advance_decision(state: GraphState) -> str:
+    return "next_subtopic" if state["stage"] == "start" else "finished"
+
+def done_node(state: GraphState) -> dict:
+    return {"response": "Great, you've got it! Say anything to move to the next topic.", "stage": "ready_for_next"}
+
+def give_up_node(state: GraphState) -> dict:
+    return {
+        "response": f"Let's move on for now — here's the key idea: {state['explanation']}\n\nSay anything to continue.",
+        "stage": "ready_for_next",
+    }
 
 
 def explain_node(state: GraphState) -> dict:
@@ -122,8 +158,9 @@ graph.add_node("check", comprehension_check_node)
 graph.add_node("evaluate", evaluate_understanding_node)
 graph.add_node("done", done_node)
 graph.add_node("give_up", give_up_node)
+graph.add_node("advance", advance_node)
 
-graph.add_conditional_edges(START, entry_decision, {"explain": "explain", "evaluate": "evaluate"})
+graph.add_conditional_edges(START, entry_decision, {"explain": "explain", "evaluate": "evaluate","advance": "advance"})
 graph.add_edge("explain", "check")
 graph.add_edge("check", END)
 graph.add_conditional_edges("evaluate", understanding_decision, {
@@ -131,18 +168,39 @@ graph.add_conditional_edges("evaluate", understanding_decision, {
 })
 graph.add_edge("done", END)
 graph.add_edge("give_up", END)
+graph.add_conditional_edges("advance", advance_decision, {"next_subtopic": "explain", "finished": END})
 
 app = graph.compile(checkpointer=InMemorySaver())
 
+CHAPTER_1_SUBTOPICS = [
+    "The French Revolution and the first expressions of nationalism",
+    "Napoleon and the Napoleonic Code",
+    "New Conservatism after 1815 — the Congress of Vienna and the conservative order",
+    "Making of Nationalism — culture, folklore, and visualizing the nation",
+    "The Strange Case of Britain — a different path to nationhood",
+    "Economic hardship and the 1830s-1848 revolutions",
+    "The Unification of Germany",
+    "The Unification of Italy",
+    "Nationalism and Imperialism — the Balkans crisis and the road to WWI",
+]
+
 
 if __name__ == "__main__":
-    config = {"configurable": {"thread_id": "2"}}
+    config = {"configurable": {"thread_id": "3"}}
 
-    result = app.invoke({"query": "why did nationalism rise in Europe?", "stage": "start", "attempts": 0}, config=config)
+    result = app.invoke({
+        "query": "",
+        "mode": "learning",
+        "subtopics": CHAPTER_1_SUBTOPICS,
+        "subtopic_index": 0,
+        "topic": CHAPTER_1_SUBTOPICS[0],
+        "stage": "start",
+        "attempts": 0,
+    }, config=config)
     print(result["response"])
 
-    while result.get("stage") != "done":
-        answer = input("\n--- your answer ---\n")
+    while result.get("stage") != "chapter_done":
+        answer = input("\n--- your input ---\n")
         result = app.invoke({"query": answer}, config=config)
-        print(f"\n[verdict: {result.get('understanding')}]")
+        print(f"\n[stage: {result.get('stage')}, verdict: {result.get('understanding')}]")
         print(result["response"])
