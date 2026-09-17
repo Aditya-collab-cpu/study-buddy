@@ -27,7 +27,7 @@ class GraphState(TypedDict):
     attempts: int
     explanation: str
     mode: str            # "learning" | "exam" (exam not built yet)
-    subtopic: list
+    subtopics: list
     subtopic_index: int
 
 
@@ -41,10 +41,10 @@ def entry_decision(state: GraphState) -> str:
 
 def advance_node(state:GraphState)->dict:
     next_index = state["subtopic_index"] + 1
-    if next_index < len(state["subtopic"]):
+    if next_index < len(state["subtopics"]):
         return{
             "subtopic_index":next_index,
-            "topic":state["subtopic"][next_index],
+            "topic":state["subtopics"][next_index],
             "attempts":0,
             "stage":"start"
             
@@ -58,8 +58,6 @@ def advance_node(state:GraphState)->dict:
 def advance_decision(state: GraphState) -> str:
     return "next_subtopic" if state["stage"] == "start" else "finished"
 
-def done_node(state: GraphState) -> dict:
-    return {"response": "Great, you've got it! Say anything to move to the next topic.", "stage": "ready_for_next"}
 
 def give_up_node(state: GraphState) -> dict:
     return {
@@ -142,14 +140,8 @@ def understanding_decision(state: GraphState) -> str:
 
 
 def done_node(state: GraphState) -> dict:
-    return {"response": "Great, you've got it! Ready for the next topic.", "stage": "done"}
+    return {"response": "Great, you've got it! Say anything to move to the next topic.", "stage": "ready_for_next"}
 
-
-def give_up_node(state: GraphState) -> dict:
-    return {
-        "response": f"Let's move on for now — here's the key idea: {state['explanation']}",
-        "stage": "done",
-    }
 
 
 graph = StateGraph(GraphState)
