@@ -15,8 +15,6 @@ MAX_ATTEMPTS = 2
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-
-
 class GraphState(TypedDict):
     query: str
     topic: str
