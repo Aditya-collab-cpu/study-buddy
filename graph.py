@@ -44,8 +44,8 @@ def advance_node(state:GraphState)->dict:
             "subtopic_index":next_index,
             "topic":state["subtopics"][next_index],
             "attempts":0,
-            "stage":"start"
-            
+            "stage":"start",
+            "understanding":""
         }
     else:
         return{

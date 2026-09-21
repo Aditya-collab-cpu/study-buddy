@@ -5,3 +5,4 @@ __pycache__/
 data/chroma_db/
 data
 .vscode/
+studybuddy-frontend/package-lock.json
