@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 .env
 data/chroma_db/
-data
 .vscode/
 studybuddy-frontend/package-lock.json
 PROJECT.md
+data/raw/
