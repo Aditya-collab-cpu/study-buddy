@@ -16,6 +16,9 @@ export default function Home() {
   const [subtopics, setSubtopics] = useState([]);
   const [subtopicIndex, setSubtopicIndex] = useState(0);
   const [theme, setTheme] = useState("dark");
+  const [userName, setUserName] = useState(null);
+  const [nameInput, setNameInput] = useState("");
+  const [nameChecked, setNameChecked] = useState(false);
 
   const [selection, setSelection] = useState(null);
   const [askMode, setAskMode] = useState("explain");
@@ -47,9 +50,33 @@ export default function Home() {
     shimmerHighlight: isDark ? "#2a2c4a" : "#f1f5f9",
   };
 
+  // localStorage only exists in the browser, so read it after mount.
   useEffect(() => {
-    startSession();
+    const saved = localStorage.getItem("studybuddy_name");
+    if (saved) {
+      setUserName(saved);
+      startSession(toThreadId(saved));
+    }
+    setNameChecked(true);
   }, []);
+
+  // "Aditya Kumar" and "aditya kumar" should resume the same progress.
+  function toThreadId(name) {
+    return name.trim().toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function handleNameSubmit() {
+    const name = nameInput.trim();
+    if (!name) return;
+    localStorage.setItem("studybuddy_name", name);
+    setUserName(name);
+    startSession(toThreadId(name));
+  }
+
+  function handleSwitchUser() {
+    localStorage.removeItem("studybuddy_name");
+    window.location.reload();
+  }
 
   function applyResult(data) {
     setStage(data.stage);
@@ -66,9 +93,13 @@ export default function Home() {
     }
   }
 
-  async function startSession() {
+  async function startSession(id) {
     setLoading(true);
-    const res = await fetch(`${API_URL}/start`, { method: "POST" });
+    const res = await fetch(`${API_URL}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ thread_id: id }),
+    });
     const data = await res.json();
     setThreadId(data.thread_id);
     applyResult(data);
@@ -180,6 +211,41 @@ export default function Home() {
     borderRadius: 6,
   };
 
+  // Avoid flashing the name screen before we've checked localStorage.
+  if (!nameChecked) {
+    return <div style={{ height: "100vh", background: colors.bg }} />;
+  }
+
+  if (!userName) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: colors.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", padding: 20 }}>
+        <div style={{ width: "100%", maxWidth: 420, background: colors.headerBg, border: `1px solid ${colors.border}`, borderRadius: 18, padding: "36px 32px", boxShadow: "0 20px 50px rgba(0,0,0,0.35)" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: colors.accent, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 20, marginBottom: 20 }}>S</div>
+          <h1 style={{ color: colors.textPrimary, fontSize: 24, fontWeight: 700, margin: "0 0 8px 0" }}>Welcome to StudyBuddy</h1>
+          <p style={{ color: colors.textMuted, fontSize: 14.5, lineHeight: 1.6, margin: "0 0 24px 0" }}>
+            What's your name? We'll save your progress so you can pick up where you left off.
+          </p>
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleNameSubmit(); }}
+            placeholder="Your name"
+            autoFocus
+            style={{ width: "100%", boxSizing: "border-box", padding: "13px 16px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 15, outline: "none", color: "#0f172a", background: "#fff", colorScheme: "light", marginBottom: 14 }}
+          />
+          <button
+            onClick={handleNameSubmit}
+            disabled={!nameInput.trim()}
+            style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: nameInput.trim() ? colors.accent : "#c7d2fe", color: "#fff", fontWeight: 600, fontSize: 15, cursor: nameInput.trim() ? "pointer" : "default" }}
+          >
+            Start learning →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: colors.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <style jsx global>{`
@@ -202,12 +268,23 @@ export default function Home() {
           <span style={{ color: colors.textPrimary, fontWeight: 700, fontSize: 16 }}>StudyBuddy</span>
           <span style={{ color: colors.accentLight, fontSize: 13, fontWeight: 600, marginLeft: 6 }}>CBSE Class 10 History</span>
         </div>
-        <button
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          style={{ width: 36, height: 36, borderRadius: "50%", border: `1px solid ${colors.border}`, background: "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
-          {isDark ? "☀️" : "🌙"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ color: colors.textMuted, fontSize: 13.5 }}>
+            Hi, <span style={{ color: colors.textPrimary, fontWeight: 600 }}>{userName}</span>
+          </span>
+          <button
+            onClick={handleSwitchUser}
+            style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${colors.border}`, background: "transparent", color: colors.textMuted, fontSize: 12.5, cursor: "pointer" }}
+          >
+            Switch user
+          </button>
+          <button
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            style={{ width: 36, height: 36, borderRadius: "50%", border: `1px solid ${colors.border}`, background: "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {isDark ? "☀️" : "🌙"}
+          </button>
+        </div>
       </header>
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>

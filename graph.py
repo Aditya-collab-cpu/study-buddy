@@ -5,12 +5,19 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
 from retrival import load_chunks, build_bm25_index, build_vector_entries, search_with_rerank
+from pymongo import MongoClient
+from langgraph.checkpoint.mongodb import MongoDBSaver
+
+
 
 load_dotenv()
 entries, metadata = load_chunks()
 bm25 = build_bm25_index(entries)
 embeddings = build_vector_entries(entries, metadata)
 MAX_ATTEMPTS = 2
+
+mongo_client = MongoClient(os.getenv("MONGODB_URI"))
+checkpointer = MongoDBSaver(mongo_client, db_name="studybuddy")
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -160,7 +167,7 @@ graph.add_edge("done", END)
 graph.add_edge("give_up", END)
 graph.add_conditional_edges("advance", advance_decision, {"next_subtopic": "explain", "finished": END})
 
-app = graph.compile(checkpointer=InMemorySaver())
+app = graph.compile(checkpointer=checkpointer)
 
 CHAPTER_1_SUBTOPICS = [
     "The French Revolution and the first expressions of nationalism",

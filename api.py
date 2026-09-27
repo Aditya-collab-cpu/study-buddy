@@ -32,6 +32,9 @@ class ChatRequest(BaseModel):
     messages:list
     context:str
     
+class StartRequest(BaseModel):
+    thread_id:str
+    
 @api.post("/ask")
 def ask_doubt(req: AskRequest):
     if req.mode == "simplify":
@@ -73,11 +76,15 @@ def ask_doubt(req: AskRequest):
     
 
 @api.post("/start")
-def start_session():
-    thread_id = str(uuid.uuid4())
+def start_session(req:StartRequest):
+    thread_id = req.thread_id
     config = {"configurable":{"thread_id": thread_id}}
     
-    result = graph_app.invoke({
+    existing = graph_app.get_state(config)
+    if existing.values.get("subtopics"):
+        result = existing.values
+    else:
+        result = graph_app.invoke({
         "query":"",
         "mode":"learning",
         "subtopics": CHAPTER_1_SUBTOPICS,
@@ -85,7 +92,9 @@ def start_session():
         "topic": CHAPTER_1_SUBTOPICS[0],
         "stage":"start",
         "attempts":0,
-    }, config = config)
+        }, config = config)
+         
+   
     return {
         "thread_id": thread_id,
         "response": result.get("response"),
