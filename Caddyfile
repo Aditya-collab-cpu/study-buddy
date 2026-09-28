@@ -1,0 +1,12 @@
+# Caddy gets HTTPS certificates automatically for both domains.
+# Both DNS records must point at this server before starting.
+
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy frontend:3000
+}
+
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy backend:5000
+}

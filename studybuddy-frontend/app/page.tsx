@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 
-const API_URL = "http://localhost:5000";
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 export default function Home() {
   const [threadId, setThreadId] = useState(null);
   const [explanation, setExplanation] = useState("");

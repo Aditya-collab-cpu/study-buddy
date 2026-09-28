@@ -1,0 +1,48 @@
+# Needs a .env next to this file with:
+#   OPENAI_API_KEY=...
+#   MONGODB_URI=...
+#   DOMAIN=studybuddy.example.com        (frontend)
+#   API_DOMAIN=api.studybuddy.example.com (backend)
+
+services:
+  backend:
+    build: .
+    env_file: .env
+    volumes:
+      - chroma_db:/app/data/chroma_db
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./studybuddy-frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  chroma_db:
+  caddy_data:
+  caddy_config:
