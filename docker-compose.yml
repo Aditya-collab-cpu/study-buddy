@@ -8,6 +8,8 @@ services:
   backend:
     build: .
     env_file: .env
+    environment:
+      ALLOWED_ORIGINS: https://${DOMAIN}
     volumes:
       - chroma_db:/app/data/chroma_db
     expose:
