@@ -1,10 +1,26 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import { useState, useEffect, useRef, type KeyboardEvent } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+
+// Shape of /start and /respond responses (see api.py)
+type SessionResult = {
+  thread_id?: string;
+  response?: string;
+  explanation?: string;
+  check_question?: string;
+  stage: string;
+  understanding?: string;
+  subtopics?: string[];
+  subtopic_index?: number;
+};
+
+type Selection = { text: string; x: number; y: number };
+type AskMode = "explain" | "simplify";
+
 export default function Home() {
-  const [threadId, setThreadId] = useState(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [explanation, setExplanation] = useState("");
   const [checkQuestion, setCheckQuestion] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -12,20 +28,20 @@ export default function Home() {
   const [understanding, setUnderstanding] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
-  const [subtopics, setSubtopics] = useState([]);
+  const [subtopics, setSubtopics] = useState<string[]>([]);
   const [subtopicIndex, setSubtopicIndex] = useState(0);
   const [theme, setTheme] = useState("dark");
-  const [userName, setUserName] = useState(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [nameChecked, setNameChecked] = useState(false);
 
-  const [selection, setSelection] = useState(null);
-  const [askMode, setAskMode] = useState("explain");
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [askMode, setAskMode] = useState<AskMode>("explain");
   const [askAnswer, setAskAnswer] = useState("");
   const [askLoading, setAskLoading] = useState(false);
   const [followUp, setFollowUp] = useState("");
   const [followUpLoading, setFollowUpLoading] = useState(false);
-  const contentRef = useRef(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === "dark";
   const colors = {
@@ -60,7 +76,7 @@ export default function Home() {
   }, []);
 
   // "Aditya Kumar" and "aditya kumar" should resume the same progress.
-  function toThreadId(name) {
+  function toThreadId(name: string) {
     return name.trim().toLowerCase().replace(/\s+/g, "-");
   }
 
@@ -77,7 +93,7 @@ export default function Home() {
     window.location.reload();
   }
 
-  function applyResult(data) {
+  function applyResult(data: SessionResult) {
     setStage(data.stage);
     setSubtopics(data.subtopics || []);
     setSubtopicIndex(data.subtopic_index ?? 0);
@@ -92,20 +108,20 @@ export default function Home() {
     }
   }
 
-  async function startSession(id) {
+  async function startSession(id: string) {
     setLoading(true);
     const res = await fetch(`${API_URL}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ thread_id: id }),
     });
-    const data = await res.json();
-    setThreadId(data.thread_id);
+    const data: SessionResult = await res.json();
+    setThreadId(data.thread_id ?? null);
     applyResult(data);
     setLoading(false);
   }
 
-  async function submitAnswer(value) {
+  async function submitAnswer(value: string) {
     if (loading) return;
     setLoading(true);
     const res = await fetch(`${API_URL}/respond`, {
@@ -119,7 +135,7 @@ export default function Home() {
     setLoading(false);
   }
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" && !e.shiftKey && answer.trim()) {
       e.preventDefault();
       submitAnswer(answer);
@@ -129,7 +145,7 @@ export default function Home() {
   function handleTextSelect() {
     const sel = window.getSelection();
     const text = sel?.toString().trim();
-    if (!text || !contentRef.current || !contentRef.current.contains(sel.anchorNode)) {
+    if (!sel || !text || !contentRef.current || !contentRef.current.contains(sel.anchorNode)) {
       return;
     }
     const rect = sel.getRangeAt(0).getBoundingClientRect();
@@ -139,7 +155,7 @@ export default function Home() {
     setSelection({ text, x: rect.left + rect.width / 2, y: rect.top });
   }
 
-  async function handleAskDoubt(mode) {
+  async function handleAskDoubt(mode: AskMode) {
     if (!selection) return;
     setAskMode(mode);
     setAskAnswer("");
@@ -176,8 +192,8 @@ export default function Home() {
   }
 
   useEffect(() => {
-    function handleDocClick(e) {
-      if (!e.target.closest("[data-ask-widget]")) {
+    function handleDocClick(e: MouseEvent) {
+      if (!(e.target as Element).closest("[data-ask-widget]")) {
         setSelection(null);
         setAskAnswer("");
         setFollowUp("");
@@ -187,7 +203,7 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleDocClick);
   }, []);
 
-  const verdictColors = { correct: "#22c55e", partial: "#eab308", wrong: "#ef4444" };
+  const verdictColors: Record<string, string> = { correct: "#22c55e", partial: "#eab308", wrong: "#ef4444" };
   const isDone = stage === "chapter_done";
   const isAwaitingAnswer = stage === "awaiting_answer";
   const isReadyForNext = stage === "ready_for_next";
@@ -195,7 +211,7 @@ export default function Home() {
   const doneCount = subtopicIndex;
   const isInitialLoad = !threadId;
 
-  const markdownComponents = {
+  const markdownComponents: Components = {
     strong: (props) => <strong style={{ fontWeight: 700, color: colors.textPrimary }} {...props} />,
     p: (props) => <p style={{ margin: "0 0 16px 0" }} {...props} />,
     ul: (props) => <ul style={{ margin: "0 0 16px 0", paddingLeft: 22 }} {...props} />,
