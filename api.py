@@ -1,3 +1,4 @@
+import os
 import uuid
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -12,7 +13,8 @@ api = FastAPI()
 
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Comma-separated, e.g. "https://studybuddy.vercel.app"
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
